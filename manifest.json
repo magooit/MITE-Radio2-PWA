@@ -1,8 +1,8 @@
 {
-  "short_name": "MITE Radio",
+  "short_name": "MITE Radio Dev",
   "name": "MITE Radio Dev",
-  "start_url": "/MITE-Radio-PWA/",
-  "scope": "/MITE-Radio-PWA/",
+  "start_url": ".",
+  "scope": "/MITE-Radio2-PWA/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#78a3b5",
