@@ -5,7 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>MITE Radio PWA</title>
   <link rel="manifest" href="./manifest.json">
-  <style>
+  <link rel="icon" type="image/png" sizes="192x192" href="./icon-small.png">
+  <link rel="apple-touch-icon" href="./icon-small.png">
+  
+  <!-- Supabase JS Client SDK -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  
+<style>
+    body {
+      background-color: #ffffff;
+      color: #000000;
+      transition: background-color 0.3s, color 0.3s;
+      margin: 0;
+      padding: 10px;
+      font-family: Arial, sans-serif;
+      box-sizing: border-box;
+    }
+    *, *:before, *:after {
+      box-sizing: inherit;
+    }
     h3 {
       text-align: center;
       margin-bottom: 10px;
@@ -14,161 +32,1062 @@
       padding: 10px;
       margin: 0;
       font-family: Arial, sans-serif;
+      font-size: 16px;
       border: 1px solid white;
       cursor: pointer;
+      transition: background-color 0.3s;
     }
     .selected {
-      background-color: #4165b9; /* Color for the selected heading */
+      background-color: #4165b9 !important;
     }
-    #sc-player {
-      width: 100%;
-    }
-    a {
-      color: white;
-      text-decoration: none;
-    }
+    #sc-player { width: 100%; }
+    a { color: white; text-decoration: none; }
     .calendar {
-      display: none; /* Hide all calendars by default */
+      display: none;
       border: 1px solid #777;
       width: 100%;
       height: 600px;
     }
+    .header-container { display: flex; justify-content: space-around; }
+    .header-container h3 { flex: 1; text-align: center; cursor: pointer; margin: 0; }
+    .footer {
+      text-align: center;
+      background-color: white;
+      color: black;
+      padding: 10px;
+      font-size: 10px;
+      margin-top: 20px;
+    }
+
+    /* Tab Switcher Styles */
+    .tab-container {
+      display: flex;
+      margin-top: 15px;
+      border-bottom: 2px solid #78a3b5;
+    }
+    .tab-btn {
+      flex: 1;
+      background-color: #f0f0f0;
+      border: none;
+      padding: 10px;
+      font-size: 14px;
+      font-weight: bold;
+      cursor: pointer;
+      color: #333;
+      transition: background-color 0.2s, color 0.2s;
+    }
+    .tab-btn.active-tab {
+      background-color: #78a3b5;
+      color: white;
+    }
+    .tab-content {
+      display: none;
+      margin-top: 10px;
+    }
+    .tab-content.active-content {
+      display: block;
+    }
+
+    /* Mock Chat UI Styles */
+    .chat-wrapper {
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      background: #fafafa;
+      padding: 8px;
+      position: relative;
+    }
+
+    /* Sticky Offline Notice Banner */
+    .chat-notice-banner {
+      position: sticky;
+      top: 0;
+      z-index: 10;
+      background-color: #e9f0f3;
+      color: #333;
+      padding: 6px 8px;
+      font-size: 12px;
+      border-bottom: 1px solid #d0dbe0;
+      text-align: center;
+      margin-bottom: 6px;
+      border-radius: 2px;
+    }
+
+    /* Dynamic Pinned Zone (Adapts to 0, 1, or multiple items) */
+    .chat-pinned-area {
+      display: none; /* Hidden by default when empty */
+      background: white;
+      margin-bottom: 6px;
+      font-size: 14px; /* <--- Add this line to match the chat font size */
+    }
+
+    .chat-messages {
+      height: 180px;
+      overflow-y: auto;
+      background: white;
+      border: 1px solid #ddd;
+      padding: 8px;
+      margin-bottom: 8px;
+      font-size: 14px;
+    }
+    .chat-msg {
+      margin-bottom: 6px;
+      line-height: 1.3;
+    }
+    .chat-msg span.handle {
+      font-weight: bold;
+      color: #4165b9;
+    }
+    .chat-input-area {
+      display: flex;
+      gap: 6px;
+    }
+    .chat-input-area input {
+      flex: 1;
+      padding: 6px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 3px;
+    }
+    .chat-input-area button {
+      padding: 6px 12px;
+      background-color: #78a3b5;
+      color: white;
+      border: none;
+      border-radius: 3px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    /* Apply alternating shading to list items */
+    [data-widget="mcp-recently-played"] ul li,
+    [data-widget="mcp-recently-played"] ul li * {
+        font-family: 'Arial', sans-serif !important;
+        font-size: 15px !important;
+    }
+
+    [data-widget="mcp-recently-played"] ul li:nth-child(odd) {
+        background-color: #f0f0f0 !important;
+    }
+
+    [data-widget="mcp-recently-played"] ul li:nth-child(even) {
+        background-color: #ffffff !important;
+    }
+
+    @keyframes RedFlash {
+      0% { color: #ff3b30; opacity: 1; }
+      50% { color: #5a0000; opacity: 0.4; }
+      100% { color: #ff3b30; opacity: 1; }
+    }
+
+    .live-flash {
+      animation: RedFlash 2s infinite ease-in-out;
+      color: #ff3b30;
+      font-weight: bold;
+    }
+    
+    /* Dark Mode Styles */
+    body.dark-mode {
+      background-color: #121212;
+      color: #e0e0e0;
+    }
+    body.dark-mode audio {
+      color-scheme: dark;
+    }
+    body.dark-mode h3 {
+      background-color: #2c4a56;
+      border-color: #333333;
+    }
+    body.dark-mode h3.selected {
+      background-color: #2b4478 !important;
+    }
+    body.dark-mode #sleep-timer {
+      background-color: #1e1e1e !important;
+      color: #e0e0e0 !important;
+      border-color: #444444 !important;
+    }
+    body.dark-mode .tab-container {
+      border-bottom-color: #2c4a56;
+    }
+    body.dark-mode .tab-btn {
+      background-color: #1e1e1e;
+      color: #a0a0a0;
+    }
+    body.dark-mode .tab-btn.active-tab {
+      background-color: #2c4a56;
+      color: white;
+    }
+    body.dark-mode .chat-wrapper {
+      background: #181818;
+      border-color: #333;
+    }
+    body.dark-mode .chat-notice-banner {
+      background-color: #222b30;
+      color: #b0c4de;
+      border-bottom-color: #33444f;
+    }
+    body.dark-mode .chat-pinned-area {
+      background: #181818;
+      font-size: 14px;
+    }
+    body.dark-mode .chat-messages {
+      background: #121212;
+      border-color: #333;
+      color: #e0e0e0;
+    }
+    body.dark-mode .chat-msg span.handle {
+      color: #78a3b5;
+    }
+    body.dark-mode .chat-input-area input {
+      background: #1e1e1e;
+      color: #e0e0e0;
+      border-color: #444;
+    }
+    body.dark-mode .calendar {
+      filter: invert(90%) hue-rotate(180deg);
+      background-color: #121212;
+    }
+    body.dark-mode .footer {
+      background-color: #1e1e1e;
+      color: #a0a0a0;
+    }
+    body.dark-mode [data-widget="mcp-recently-played"] ul li:nth-child(odd) {
+        background-color: #1e1e1e !important;
+    }
+    body.dark-mode [data-widget="mcp-recently-played"] ul li:nth-child(even) {
+        background-color: #2a2a2a !important;
+    }
+    body.dark-mode [data-widget="mcp-recently-played"] ul li,
+    body.dark-mode [data-widget="mcp-recently-played"] ul li * {
+        color: #e0e0e0 !important;
+    }
   </style>
 </head>
+
+<script type="text/javascript" language="javascript" src="https://carina.streamerr.co:2020/dist/widgets.js" defer></script>
 <body>
-  <div id="sc-player">
-    <div
-      is="player"
-      lang="en"
-      api-url="https://phoebe.streamerr.co:1450/api/v2"
-      server-id="1"
-      station-name="MITE Radio"
-      station-url="https://miteradio.com.au"
-      imagecontainer="top"
-      imagecontainer-bg="#78a3b5"
-      imagecontainer-bg-opacity="1"
-      controlscontainer="bottom"
-      controlscontainer-bg="#d6d6d6"
-      controlscontainer-bg-opacity="1"
-      controlscontainer-bg-img="./MITEbackground8.png"
-      historycontainer="bottom"
-      historycontainer-bg="#cdd8e5"
-      historycontainer-bg-opacity="1"
-      :show-history="true"
-      history-limit="6"
-      sharecontainer="both"
-      sharecontainer-bg="#ffffff"
-      sharecontainer-bg-opacity="1"
-      :show-share="false"
-      share-url=""
-      :share="['facebook']"
-      :show-dj="false"
-      default-dj-img="https://phoebe.streamerr.co:1450/media/djs/dj.png"
-      :show-image="true"
-      default-cover-image="https://phoebe.streamerr.co:1450/media/tracks/default_track_img.png"
-      play-button-color="#35495e"
-      play-button-bg="null"
-      visualizer-outline-color="#37679a"
-      visualizer-bar-width="1"
-      :channels-displayed="[1]"
-      channels-switch-bg="#4165b9"
-      channels-switch-color="#ffffff"
-      channels-switch-bg-active="#dddddd"
-      channels-switch-color-active="#000000"
-      :show-vote="false"
-      vote-buttons-color="#35495e"
-      vote-buttons-opacity="1"
-      vote-results-font-color="#FFFFFF"
-      vote-results-font-size="16"
-      :progress-show="true"
-      progress-bar-color="#35495e"
-      progress-bar-bg-color="#41b883"
-      progress-bar-bg-opacity="0.1"
-      progress-bar-bg-height="25"
-      progress-bar-opacity="1"
-      progress-font-color="#FFFFFF"
-      progress-font-size="12"
-      progress-bar-bg-radius="10"
-      progress-bar-bg-border="#F5F5F5"
-      player-width="100%"
-    >
+<div id="live-status" data-is-live="false" style="display: flex; flex-direction: column; gap: 6px; background-color: #78a3b5; color: white; padding: 8px 10px; border: 1px solid white; font-family: Arial, sans-serif;">
+    <!-- Top Row: Sleep Timer, Status Badge (Now Playing / LIVE), and Dark Mode Toggle -->
+    <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+      <select id="sleep-timer" style="font-size: 11px; padding: 2px; background: white; color: black; border-radius: 3px; border: 1px solid #ccc; cursor: pointer;">
+        <option value="0">Sleep: Off</option>
+        <option value="15">15m</option>
+        <option value="30">30m</option>
+        <option value="45">45m</option>
+        <option value="60">60m</option>
+      </select>
+      
+      <span id="status-badge" style="font-size: 14px; font-weight: bold; text-align: center;">Now Playing</span>
+      
+      <div style="display: flex; align-items: center; gap: 8px;">
+        <span id="timer-display" style="font-size: 12px; min-width: 40px; text-align: right;"></span>
+        <button id="dark-mode-toggle" style="background: none; border: none; font-size: 15px; cursor: pointer; padding: 0;" title="Toggle Dark Mode">🌙</button>
+      </div>
+    </div>
+
+    <!-- Second Row: Track Details (Wraps naturally, hidden if offline) -->
+    <div style="display: flex; justify-content: center; align-items: center; width: 100%;">
+      <span id="status-text" style="font-size: 14px; text-align: center; word-break: break-word; line-height: 1.3;"></span>
     </div>
   </div>
+
+  <div data-widget="mcp-now-playing-cover" data-name="miteradio" data-coverart="true" data-styled="true" data-cover="true" style="height: 330px"></div>
+
+  <div id="Website-player">
+    <audio id="native-audio" controls preload="none" style="width: 100%;">
+    <source src="https://carina.streamerr.co/stream/miteradio?ua=PWA-Player" type="audio/mpeg">
+    Your browser does not support the audio element.
+    </audio>
+  </div>
+  
+  <!-- UI Tab Switcher for Recently Played vs Chat -->
+  <div class="tab-container">
+    <button class="tab-btn active-tab" onclick="switchTab('recent')">🎵 Recently Played</button>
+    <button class="tab-btn" onclick="switchTab('chat')">💬 Chat</button>
+  </div>
+
+  <!-- Tab Content: Recently Played -->
+  <div id="tab-recent" class="tab-content active-content">
+    <div data-widget="mcp-recently-played" data-name="miteradio" data-limit="5" data-covers="true"></div>
+  </div>
+
+  <!-- Tab Content: Chat UI -->
+  <div id="tab-chat" class="tab-content">
+    <div class="chat-wrapper">
+      <!-- Sticky Offline Rolling Window Notice -->
+      <div id="offline-chat-notice" class="chat-notice-banner">
+        ℹ️ Offline chat: Showing a rolling 6-hour history.
+      </div>
+
+      <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; font-size: 12px; color: #666;">
+        <span>Posting as: <strong id="current-handle" style="color: #4165b9; cursor: pointer;" title="Click to change handle">Listener_99</strong> ✎</span>
+        <span id="chat-status-bar">Connected</span>
+      </div>
+
+      <!-- Dynamic Pinned Area (Sits above chat stream when active) -->
+      <div class="chat-pinned-area"></div>
+
+      <div class="chat-messages">
+        <!-- Messages populate here dynamically -->
+      </div>
+      <div class="chat-input-area">
+        <input type="text" placeholder="Type a message...">
+        <button>Send</button>
+      </div>
+    </div>
+  </div>
+
   <h3><a href="https://www.miteradio.com.au/blog.html" target="_blank">Check out the MITE Radio Blog</a></h3>
   <h3><a href="https://docs.google.com/forms/d/e/1FAIpQLScgiAMMGkA1gbSBJvZlRMJE42PjkVzftgzzq2-6uhUFaqH3UA/viewform" target="_blank">Do you have a question?</a></h3>
 
-  <!-- Headings to toggle calendars -->
-  <h3 id="headingWST" onclick="toggleCalendar('calendarWST', 'headingWST')">MITE Station Schedule (Perth Time WST)</h3>
-  <h3 id="headingACST" onclick="toggleCalendar('calendarACST', 'headingACST')">MITE Station Schedule (Australia Central Time ACST)</h3>
-  <h3 id="headingAEST" onclick="toggleCalendar('calendarAEST', 'headingAEST')">MITE Station Schedule (Australia Eastern Time AEST)</h3>
+<div class="header-container">
+    <h3 id="headingWST" onclick="toggleCalendar(event, 'calendarWST', 'headingWST')">Schedule Perth Time WST</h3>
+    <h3 id="headingACST" onclick="toggleCalendar(event, 'calendarACST', 'headingACST')">Australia Central Time ACST</h3>
+    <h3 id="headingAEST" onclick="toggleCalendar(event, 'calendarAEST', 'headingAEST')">Australia Eastern Time AEST</h3>
+</div>
+
+<iframe id="calendarWST" class="calendar" src="https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=Australia%2FPerth&mode=AGENDA&src=a2F5QHN0YWlyd2F5cHJvamVjdC5vcmc&color=%234285F4" frameborder="0" scrolling="no"></iframe>
+<iframe id="calendarACST" class="calendar" src="https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=Australia%2FAdelaide&mode=AGENDA&src=a2F5QHN0YWlyd2F5cHJvamVjdC5vcmc&color=%234285F4" frameborder="0" scrolling="no"></iframe>
+<iframe id="calendarAEST" class="calendar" src="https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=Australia%2FSydney&mode=AGENDA&src=a2F5QHN0YWlyd2F5cHJvamVjdC5vcmc&color=%234285F4" frameborder="0" scrolling="no"></iframe>
   
-  <!-- Calendar iframes, each with a unique ID and timezone -->
-  <iframe id="calendarWST" class="calendar" src="https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=Australia%2FPerth&bgcolor=%234285F4&showTitle=0&showPrint=0&mode=AGENDA&showCalendars=0&showTabs=0&src=a2F5QHN0YWlyd2F5cHJvamVjdC5vcmc&color=%234285F4" frameborder="0" scrolling="no"></iframe>
-
-  <iframe id="calendarACST" class="calendar" src="https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=Australia%2FAdelaide&bgcolor=%234285F4&showTitle=0&showPrint=0&mode=AGENDA&showCalendars=0&showTabs=0&src=a2F5QHN0YWlyd2F5cHJvamVjdC5vcmc&color=%234285F4" frameborder="0" scrolling="no"></iframe>
-
-  <iframe id="calendarAEST" class="calendar" src="https://calendar.google.com/calendar/embed?height=600&wkst=1&ctz=Australia%2FSydney&bgcolor=%234285F4&showTitle=0&showPrint=0&mode=AGENDA&showCalendars=0&showTabs=0&src=a2F5QHN0YWlyd2F5cHJvamVjdC5vcmc&color=%234285F4" frameborder="0" scrolling="no"></iframe>
-
-  <script type="text/javascript" src="https://phoebe.streamerr.co:1450/media/static/js/sc_player/sc_player.js"></script>
   <script>
-let lastScrollPos = 0;  // Track the last scroll position before opening the calendar
+    // Tab Switching Logic
+    function switchTab(tabName) {
+      document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active-tab'));
+      document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active-content'));
 
-function toggleCalendar(calendarId, headingId) {
-  // Find the calendar and heading elements
-  var selectedCalendar = document.getElementById(calendarId);
-  var selectedHeading = document.getElementById(headingId);
-
-  // If the calendar is currently visible
-  if (selectedCalendar.style.display === "block") {
-    // Save the current scroll position before closing the calendar
-    lastScrollPos = window.scrollY;
-
-    // Hide the selected calendar
-    selectedCalendar.style.display = "none";
-
-    // Check if the page is at the bottom
-    if ((window.innerHeight + window.scrollY) >= document.body.offsetHeight) {
-      // If we're at the bottom, scroll up slightly before closing
-      window.scrollBy({ top: -50, behavior: 'smooth' });
-    } else {
-      // Scroll the page back to the saved position smoothly
-      window.scrollTo({ top: lastScrollPos, behavior: "smooth" });
+      if (tabName === 'recent') {
+        document.querySelector('.tab-btn:nth-child(1)').classList.add('active-tab');
+        document.getElementById('tab-recent').classList.add('active-content');
+      } else {
+        document.querySelector('.tab-btn:nth-child(2)').classList.add('active-tab');
+        document.getElementById('tab-chat').classList.add('active-content');
+      }
     }
 
-    // Remove the "selected" class from the heading
-    selectedHeading.classList.remove('selected');
-  } else {
-    // Hide all other calendars and reset their headings
-    var calendars = document.querySelectorAll('.calendar');
-    calendars.forEach(function(calendar) {
-      calendar.style.display = "none";
-    });
+    let lastScrollPos = 0;
+    function toggleCalendar(event, calendarId, headingId) {
+      event.preventDefault();
+      var selectedCalendar = document.getElementById(calendarId);
+      var selectedHeading = document.getElementById(headingId);
 
-    var headings = document.querySelectorAll('h3');
-    headings.forEach(function(heading) {
-      heading.classList.remove('selected');
-    });
-
-    // Show the selected calendar and highlight the heading
-    selectedCalendar.style.display = "block";
-    selectedHeading.classList.add('selected');
-
-    // Smoothly scroll the heading into view
-    selectedHeading.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-}
-
+      if (selectedCalendar.style.display === "block") {
+        lastScrollPos = window.scrollY;
+        selectedCalendar.style.display = "none";
+        window.scrollTo({ top: lastScrollPos, behavior: "smooth" });
+        selectedHeading.classList.remove('selected');
+      } else {
+        document.querySelectorAll('.calendar').forEach(c => c.style.display = "none");
+        document.querySelectorAll('h3').forEach(h => h.classList.remove('selected'));
+        selectedCalendar.style.display = "block";
+        selectedHeading.classList.add('selected');
+        setTimeout(() => selectedCalendar.scrollIntoView({ behavior: "smooth", block: "start" }), 0);
+      }
+    }
   </script>
-  <!-- Register the service worker -->
+
   <script>
-    if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
-        navigator.serviceWorker.register('./service-worker.js')
-          .then((registration) => console.log('Service Worker registered:', registration))
-          .catch((error) => console.log('Service Worker registration failed:', error));
+    // Media Session API integration
+    const nativeAudio = document.getElementById('native-audio');
+
+    if ('mediaSession' in navigator && nativeAudio) {
+      navigator.mediaSession.metadata = new MediaMetadata({
+        title: 'MITE Radio Live Stream',
+        artist: 'MITE Radio',
+        album: 'Live Internet Broadcast'
+      });
+
+      nativeAudio.addEventListener('play', () => {
+        navigator.mediaSession.playbackState = 'playing';
+      });
+
+      nativeAudio.addEventListener('pause', () => {
+        navigator.mediaSession.playbackState = 'paused';
+      });
+
+      navigator.mediaSession.setActionHandler('play', async () => {
+        try {
+          await nativeAudio.play();
+          navigator.mediaSession.playbackState = 'playing';
+        } catch (err) {
+          console.error("Playback failed:", err);
+        }
+      });
+
+      navigator.mediaSession.setActionHandler('pause', () => {
+        nativeAudio.pause();
+        navigator.mediaSession.playbackState = 'paused';
       });
     }
   </script>
+
+  <script>
+    let previousLiveShowName = null;
+
+    function updateLiveBannerTheme() {
+      const banner = document.getElementById('live-status');
+      const isDark = document.body.classList.contains('dark-mode');
+      const isLive = banner.getAttribute('data-is-live') === 'true';
+
+      if (isLive) {
+        banner.style.backgroundColor = isDark ? "#5a1212" : "darkred";
+      } else {
+        banner.style.backgroundColor = isDark ? "#2c4a56" : "#78a3b5";
+      }
+      
+      banner.style.borderColor = isDark ? "#000000" : "white";
+    }
+
+    function checkLiveStatus() {
+        fetch('https://carina.streamerr.co:2020/json/stream/miteradio')
+            .then(response => response.json())
+            .then(data => {
+                const banner = document.getElementById('live-status');
+                const statusBadge = document.getElementById('status-badge');
+                const statusText = document.getElementById('status-text');
+                const chatTabBtn = document.querySelector('.tab-btn:nth-child(2)');
+                const offlineNotice = document.getElementById('offline-chat-notice');
+
+                let isCurrentlyLive = false;
+                let currentShowName = "";
+
+                if (data && data.nowplaying) {
+                    const txt = document.createElement("textarea");
+                    txt.innerHTML = data.nowplaying;
+                    currentShowName = decodeURIComponent(txt.value).trim();
+                    
+                    if (currentShowName.startsWith("MITE") && currentShowName.includes("-")) {
+                        isCurrentlyLive = true;
+                        statusBadge.innerHTML = '<span class="live-flash">LIVE</span>';
+                        statusText.innerText = currentShowName;
+                        banner.setAttribute('data-is-live', 'true');
+                        chatTabBtn.innerHTML = '💬 <span class="live-flash">Live</span> Chat';
+
+                        if (previousLiveShowName !== currentShowName || !localStorage.getItem('mite_live_session_start')) {
+                            localStorage.removeItem('mite_live_session_start');
+                        }
+                    }
+                }
+                
+                if (!isCurrentlyLive) {
+                    statusBadge.innerText = "Now Playing";
+                    statusText.innerText = "";
+                    banner.setAttribute('data-is-live', 'false');
+                    chatTabBtn.innerHTML = "💬 Chat";
+                    currentShowName = "OFFLINE";
+                }
+
+                if (offlineNotice) {
+                    offlineNotice.style.display = isCurrentlyLive ? 'none' : 'block';
+                }
+
+                if (isCurrentlyLive) {
+                    if (previousLiveShowName !== currentShowName || !localStorage.getItem('mite_live_session_start')) {
+                        detectLiveShowStartTime(currentShowName);
+                    }
+                } else {
+                    localStorage.removeItem('mite_live_session_start');
+                    localStorage.removeItem('mite_active_show_name');
+                }
+
+                previousLiveShowName = currentShowName;
+                updateLiveBannerTheme();
+            })
+            .catch(err => {
+                console.error("Could not fetch status:", err);
+                document.getElementById('status-badge').innerText = "Status Unavailable";
+                document.getElementById('status-text').innerText = "";
+            });
+    }
+
+    async function getOrCreateLiveSession(showTitle) {
+        if (!showTitle) showTitle = "Live Broadcast";
+
+        const { data: latestSessions, error: fetchError } = await supabaseClient
+            .from('live_sessions')
+            .select('*')
+            .is('ended_at', null)
+            .order('started_at', { ascending: false })
+            .limit(1);
+
+        if (fetchError || !latestSessions || latestSessions.length === 0) {
+            return Date.now(); 
+        }
+
+        return new Date(latestSessions[0].started_at).getTime();
+    }
+
+      async function detectLiveShowStartTime(showName) {
+        const sessionStartTime = await getOrCreateLiveSession(showName);
+        
+        const storedShow = localStorage.getItem('mite_active_show_name');
+        const storedStartTime = localStorage.getItem('mite_live_session_start');
+
+        // If the database has a newer session start time than what we have locally, force a reset
+        if (storedShow !== showName || storedStartTime !== sessionStartTime.toString() || !localStorage.getItem('mite_live_session_start')) {
+            localStorage.setItem('mite_live_session_start', sessionStartTime);
+            localStorage.setItem('mite_active_show_name', showName);
+            localStorage.removeItem(LOCAL_LIVE_STORAGE_KEY);
+            lastRenderedIds.clear();
+            lastPinnedStateString = ""; // Reset pinned tracking too
+            
+            const container = document.querySelector('.chat-messages');
+            const pinnedArea = document.querySelector('.chat-pinned-area');
+            if (container) container.innerHTML = '';
+            if (pinnedArea) {
+                pinnedArea.innerHTML = '';
+                pinnedArea.style.display = 'none';
+            }
+        }
+        
+        if (typeof fetchChatMessages === 'function') fetchChatMessages();
+    }
+
+    checkLiveStatus();
+    setInterval(checkLiveStatus, 15000);
+
+    setInterval(() => {
+        if (typeof fetchChatMessages === 'function') {
+            fetchChatMessages();
+        }
+    }, 1000);
+  </script>
+
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./service-worker.js').catch(console.error);
+      });
+    }
+  </script>
+  
+  <script>
+    let sleepTimerId = null;
+    let countdownInterval = null;
+    const audioPlayer = document.getElementById('native-audio');
+    const timerSelect = document.getElementById('sleep-timer');
+    const timerDisplay = document.getElementById('timer-display');
+
+    timerSelect.addEventListener('change', async (e) => {
+      const minutes = parseInt(e.target.value, 10);
+
+      clearTimeout(sleepTimerId);
+      clearInterval(countdownInterval);
+      timerDisplay.innerText = "";
+
+      if (minutes === 0) return;
+
+      if (audioPlayer && audioPlayer.paused) {
+        try {
+          await audioPlayer.play();
+          if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = 'playing';
+          }
+        } catch (err) {
+          console.error("Auto-play failed upon setting sleep timer:", err);
+        }
+      }
+
+      let timeLeft = minutes * 60;
+
+      countdownInterval = setInterval(() => {
+        if (timeLeft <= 0) {
+          clearInterval(countdownInterval);
+          return;
+        }
+        timeLeft--;
+        const mins = Math.floor(timeLeft / 60);
+        const secs = timeLeft % 60;
+        timerDisplay.innerText = `${mins}:${secs < 10 ? '0' : ''}${secs}`;
+      }, 1000);
+
+      sleepTimerId = setTimeout(() => {
+        if (audioPlayer && !audioPlayer.paused) {
+          audioPlayer.pause();
+          if ('mediaSession' in navigator) {
+            navigator.mediaSession.playbackState = 'paused';
+          }
+        }
+        timerSelect.value = "0";
+        timerDisplay.innerText = "";
+        clearInterval(countdownInterval);
+      }, minutes * 60 * 1000);
+    });
+  </script>
+
+  <script>
+    // Dark Mode Toggle Logic
+    const darkModeToggle = document.getElementById('dark-mode-toggle');
+    const userPrefersDark = localStorage.getItem('darkMode') === 'true';
+
+    if (userPrefersDark) {
+      document.body.classList.add('dark-mode');
+      darkModeToggle.innerText = '☀️';
+      updateLiveBannerTheme();
+    }
+
+    darkModeToggle.addEventListener('click', () => {
+      document.body.classList.toggle('dark-mode');
+      const isDark = document.body.classList.contains('dark-mode');
+      localStorage.setItem('darkMode', isDark);
+      darkModeToggle.innerText = isDark ? '☀️' : '🌙';
+      updateLiveBannerTheme();
+    });
+  </script>
+  
+  <script>
+    // Supabase Chat Integration & Split Pinned Zone Rendering
+    const SUPABASE_URL = "https://lcrmltxcmxrmrproputu.supabase.co";
+    const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imxjcm1sdHhjbXhybXJwcm9wdXR1Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODkyNTAyNzEsImV4cCI6MjEwNDgyNjI3MX0.CiDUGhzjD8LzKUCVj7JOhD-EaNvFSRECG40QWSnffxs";
+    const supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const LOCAL_OFFLINE_STORAGE_KEY = 'mite_local_offline_msgs';
+    const LOCAL_LIVE_STORAGE_KEY = 'mite_local_live_msgs';
+    const SIX_HOURS = 6 * 60 * 60 * 1000;
+
+    const DJ_TRIGGER_PHRASE = "!djmode";
+    const DJ_SECRET_PIN = "1234";
+
+    let lastRenderedIds = new Set();
+    let lastPinnedStateString = ""; // Track changes to pinned items specifically
+    let lastActiveMode = null;
+
+    function initializeUserHandle() {
+        let handle = localStorage.getItem('mite_user_handle');
+        if (!handle) {
+            const randomId = Math.floor(1000 + Math.random() * 9000);
+            handle = `Listener_${randomId}`;
+            localStorage.setItem('mite_user_handle', handle);
+        }
+        const handleDisplay = document.getElementById('current-handle');
+        if (handleDisplay) {
+            handleDisplay.innerText = handle;
+        }
+    }
+
+    function getActiveChatConfig() {
+        const banner = document.getElementById('live-status');
+        const isLive = banner && banner.getAttribute('data-is-live') === 'true';
+        return {
+            mode: isLive ? "live" : "offline",
+            storageKey: isLive ? LOCAL_LIVE_STORAGE_KEY : LOCAL_OFFLINE_STORAGE_KEY,
+            isLive: isLive
+        };
+    }
+
+    function cleanLocalCaches() {
+        const now = new Date().getTime();
+        [LOCAL_OFFLINE_STORAGE_KEY, LOCAL_LIVE_STORAGE_KEY].forEach(key => {
+            let msgs = JSON.parse(localStorage.getItem(key) || '[]');
+            let validMsgs = msgs.filter(msg => (now - new Date(msg.timestamp || msg.created_at).getTime()) < SIX_HOURS);
+            localStorage.setItem(key, JSON.stringify(validMsgs));
+        });
+    }
+
+    async function fetchChatMessages() {
+        const config = getActiveChatConfig();
+        const liveSessionStart = localStorage.getItem('mite_live_session_start');
+        
+        let query = supabaseClient
+            .from('messages')
+            .select('*')
+            .eq('mode', config.mode)
+            .order('created_at', { ascending: true });
+
+        if (config.isLive && liveSessionStart) {
+            const isoStartTime = new Date(parseInt(liveSessionStart, 10)).toISOString();
+            query = query.gte('created_at', isoStartTime);
+        }
+
+        const { data: messages, error } = await query;
+
+        if (error) {
+            console.error("Error fetching messages:", error);
+            return;
+        }
+
+        renderMessages(messages || []);
+    }
+
+    async function deleteMessage(messageId) {
+        if (!confirm("Delete this message?")) return;
+        const { error } = await supabaseClient
+            .from('messages')
+            .update({ status: 'deleted' })
+            .eq('id', messageId);
+            
+        if (!error) {
+            lastRenderedIds.clear();
+            fetchChatMessages();
+        } else {
+            console.error("Error deleting message:", error);
+        }
+    }
+
+    async function togglePin(messageId, pinState) {
+        const { error } = await supabaseClient
+            .from('messages')
+            .update({ pinned: pinState })
+            .eq('id', messageId);
+            
+        if (!error) {
+            lastRenderedIds.clear();
+            fetchChatMessages();
+        } else {
+            console.error("Error toggling pin:", error);
+        }
+    }
+
+    async function endLiveChatSession() {
+        if (!confirm("End current chat session for everyone and start fresh?")) return;
+        
+        const newSessionTime = new Date().toISOString();
+        const statusText = document.getElementById('status-text');
+        const currentShowTitle = statusText && statusText.innerText ? statusText.innerText : "Live Broadcast";
+
+        const { error } = await supabaseClient
+            .from('live_sessions')
+            .insert([{ 
+                started_at: newSessionTime,
+                show_title: currentShowTitle
+            }]);
+
+        if (error) {
+            console.error("Error ending live session globally:", error);
+            alert("Could not sync session reset globally.");
+            return;
+        }
+        
+        localStorage.setItem('mite_live_session_start', new Date(newSessionTime).getTime().toString());
+        localStorage.removeItem(LOCAL_LIVE_STORAGE_KEY);
+        
+        lastRenderedIds.clear();
+        const container = document.querySelector('.chat-messages');
+        const pinnedArea = document.querySelector('.chat-pinned-area');
+        if (container) container.innerHTML = '';
+        if (pinnedArea) {
+            pinnedArea.innerHTML = '';
+            pinnedArea.style.display = 'none';
+        }
+        
+        fetchChatMessages();
+    }
+
+    function exitDjMode() {
+        if (!confirm("Exit DJ mode?")) return;
+        localStorage.setItem('mite_dj_mode', 'false');
+        lastRenderedIds.clear();
+        fetchChatMessages();
+    }
+
+    function renderMessages(serverMessages) {
+        const config = getActiveChatConfig();
+        const container = document.querySelector('.chat-messages');
+        const pinnedArea = document.querySelector('.chat-pinned-area');
+        const statusBar = document.getElementById('chat-status-bar');
+        if (!container || !pinnedArea) return;
+
+        const isDj = localStorage.getItem('mite_dj_mode') === 'true';
+        if (statusBar) {
+            if (isDj && config.isLive) {
+                statusBar.innerHTML = `Connected <span style="margin-left: 6px;">
+                    <button onclick="endLiveChatSession()" style="cursor: pointer; background: #78a3b5; color: white; border: none; border-radius: 2px; font-size: 10px; padding: 2px 5px;">End Chat</button>
+                    <button onclick="exitDjMode()" style="cursor: pointer; background: #b57878; color: white; border: none; border-radius: 2px; font-size: 10px; padding: 2px 5px; margin-left: 4px;">Exit DJ</button>
+                </span>`;
+            } else {
+                statusBar.innerHTML = 'Connected';
+            }
+        }
+
+        if (lastActiveMode !== config.mode) {
+            lastRenderedIds.clear();
+            container.innerHTML = '';
+            pinnedArea.innerHTML = '';
+            pinnedArea.style.display = 'none';
+            lastActiveMode = config.mode;
+        }
+
+        cleanLocalCaches();
+
+        let localMsgs = JSON.parse(localStorage.getItem(config.storageKey) || '[]');
+        let combinedMessages = [...serverMessages];
+        
+        localMsgs.forEach(localMsg => {
+            const alreadyServerSide = serverMessages.some(m => 
+                m.message === localMsg.message && 
+                m.handle === localMsg.handle && 
+                Math.abs(new Date(m.created_at) - new Date(localMsg.timestamp)) < 10000
+            );
+            
+            if (!alreadyServerSide) {
+                combinedMessages.push(localMsg);
+            } else {
+                localMsgs = localMsgs.filter(m => m.tempId !== localMsg.tempId);
+                localStorage.setItem(config.storageKey, JSON.stringify(localMsgs));
+            }
+        });
+
+        const now = new Date().getTime();
+
+        if (config.isLive) {
+            let liveSessionStart = localStorage.getItem('mite_live_session_start');
+            if (liveSessionStart) {
+                const startTime = parseInt(liveSessionStart, 10);
+                combinedMessages = combinedMessages.filter(msg => new Date(msg.timestamp || msg.created_at).getTime() >= startTime);
+            }
+        } else {
+            const sixHoursAgo = now - SIX_HOURS;
+            combinedMessages = combinedMessages.filter(msg => new Date(msg.timestamp || msg.created_at).getTime() >= sixHoursAgo);
+        }
+
+        // Separate pinned items from regular message stream
+        const pinnedMessages = combinedMessages.filter(msg => msg.pinned && msg.status !== 'deleted');
+        const regularMessages = combinedMessages.filter(msg => !msg.pinned);
+
+        // Sort regular items chronologically
+        regularMessages.sort((a, b) => new Date(a.timestamp || a.created_at) - new Date(b.timestamp || b.created_at));
+
+        // --- 1. Render Pinned Zone (Static Top Area) ---
+        const currentPinnedStateString = JSON.stringify(pinnedMessages.map(m => m.id + '_' + m.message));
+        if (currentPinnedStateString !== lastPinnedStateString) {
+            pinnedArea.innerHTML = '';
+            if (pinnedMessages.length > 0) {
+                pinnedArea.style.display = 'block';
+                pinnedMessages.forEach(msg => {
+                    const pinDiv = document.createElement('div');
+                    pinDiv.className = 'chat-msg';
+                    pinDiv.style.marginBottom = '4px';
+
+                    const msgId = msg.id;
+                    const djControls = (isDj && msgId) ? ` <span style="float: right; font-size: 11px;">
+                        <button onclick="togglePin('${msgId}', false)" style="cursor: pointer; background:none; border:1px solid #ccc; border-radius:2px; font-size:10px;">Unpin</button>
+                        <button onclick="deleteMessage('${msgId}')" style="color: red; cursor: pointer; background:none; border:1px solid #ccc; border-radius:2px; font-size:10px;">Delete</button>
+                    </span>` : '';
+
+                    pinDiv.innerHTML = `📌 <span class="handle">${escapeHtml(msg.handle)}:</span> ${escapeHtml(msg.message)}${djControls}`;
+                    pinnedArea.appendChild(pinDiv);
+                });
+            } else {
+                pinnedArea.style.display = 'none';
+            }
+            lastPinnedStateString = currentPinnedStateString;
+        }
+
+        // --- 2. Render Regular Scrolling Chat Stream ---
+        if (regularMessages.length === 0) {
+            if (!container.innerHTML && pinnedMessages.length === 0) {
+                const emptyDiv = document.createElement('div');
+                emptyDiv.style.color = '#888';
+                emptyDiv.style.textAlign = 'center';
+                emptyDiv.style.padding = '20px';
+                emptyDiv.innerText = config.isLive 
+                    ? "No live chat messages for this show yet. Say hello!" 
+                    : "No offline messages in the last 6 hours. Leave a message for the team below!";
+                container.innerHTML = '';
+                container.appendChild(emptyDiv);
+            }
+            return;
+        }
+
+        const currentIds = new Set(regularMessages.map(m => m.id || m.tempId));
+        let hasNewItems = false;
+        regularMessages.forEach(msg => {
+            const id = msg.id || msg.tempId;
+            if (!lastRenderedIds.has(id)) {
+                hasNewItems = true;
+            }
+        });
+
+        if (hasNewItems || lastRenderedIds.size === 0) {
+            const isNearBottom = container.scrollHeight - container.scrollTop - container.clientHeight < 60;
+
+            container.innerHTML = '';
+            regularMessages.forEach(msg => {
+                if (msg.status === 'deleted') return;
+
+                const msgDiv = document.createElement('div');
+                msgDiv.className = 'chat-msg';
+
+                const isPending = msg.status === 'sending';
+                const pendingSuffix = isPending ? ' <span style="font-size: 10px; color: #888;">(sending...)</span>' : '';
+                if (isPending) msgDiv.style.opacity = '0.6';
+
+                const msgId = msg.id;
+                const djControls = (isDj && msgId) ? ` <span style="float: right; font-size: 11px;">
+                    <button onclick="togglePin('${msgId}', true)" style="cursor: pointer; background:none; border:1px solid #ccc; border-radius:2px; font-size:10px;">Pin</button>
+                    <button onclick="deleteMessage('${msgId}')" style="color: red; cursor: pointer; background:none; border:1px solid #ccc; border-radius:2px; font-size:10px;">Delete</button>
+                </span>` : '';
+
+                msgDiv.innerHTML = `<span class="handle">${escapeHtml(msg.handle)}:</span> ${escapeHtml(msg.message)}${pendingSuffix}${djControls}`;
+                container.appendChild(msgDiv);
+            });
+
+            lastRenderedIds = currentIds;
+
+            if (isNearBottom || hasNewItems) {
+                container.scrollTop = container.scrollHeight;
+            }
+        }
+    }
+
+    async function handleSendMessage() {
+        const inputField = document.querySelector('.chat-input-area input');
+        const sendBtn = document.querySelector('.chat-input-area button');
+        const messageText = inputField.value.trim();
+        const handleElement = document.getElementById('current-handle');
+        const handle = handleElement ? handleElement.innerText : (localStorage.getItem('mite_user_handle') || 'Listener_9999');
+        const config = getActiveChatConfig();
+
+        if (!messageText) return;
+
+        inputField.disabled = true;
+        sendBtn.disabled = true;
+        sendBtn.innerText = '...';
+        inputField.value = '';
+
+        const uniqueTempId = 'temp_' + Date.now() + '_' + Math.random().toString(36).substring(2, 7);
+        const tempMsg = {
+            tempId: uniqueTempId,
+            timestamp: new Date().toISOString(),
+            handle: handle,
+            message: messageText,
+            pinned: false,
+            status: 'sending'
+        };
+
+        let localMsgs = JSON.parse(localStorage.getItem(config.storageKey) || '[]');
+        localMsgs.push(tempMsg);
+        localStorage.setItem(config.storageKey, JSON.stringify(localMsgs));
+
+        fetchChatMessages(); 
+
+        const { error } = await supabaseClient
+            .from('messages')
+            .insert([{
+                handle: handle,
+                message: messageText,
+                mode: config.mode,
+                pinned: false
+            }]);
+
+        if (error) {
+            console.error("Error sending message to Supabase:", error);
+        } else {
+            let currentLocal = JSON.parse(localStorage.getItem(config.storageKey) || '[]');
+            currentLocal = currentLocal.filter(m => m.tempId !== uniqueTempId);
+            localStorage.setItem(config.storageKey, JSON.stringify(currentLocal));
+            
+            fetchChatMessages();
+        }
+
+        setTimeout(() => {
+            inputField.disabled = false;
+            sendBtn.disabled = false;
+            sendBtn.innerText = 'Send';
+            inputField.focus();
+        }, 300);
+    }
+
+    supabaseClient
+        .channel('public:chat_sync')
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'messages' }, payload => {
+            fetchChatMessages();
+        })
+        .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'live_sessions' }, payload => {
+            const newStartTime = new Date(payload.new.started_at).getTime();
+            localStorage.setItem('mite_live_session_start', newStartTime.toString());
+            localStorage.removeItem(LOCAL_LIVE_STORAGE_KEY);
+            lastRenderedIds.clear();
+            const container = document.querySelector('.chat-messages');
+            const pinnedArea = document.querySelector('.chat-pinned-area');
+            if (container) container.innerHTML = '';
+            if (pinnedArea) {
+                pinnedArea.innerHTML = '';
+                pinnedArea.style.display = 'none';
+            }
+            fetchChatMessages();
+        })
+        .subscribe();
+
+    function setupChatUI() {
+        initializeUserHandle();
+        fetchChatMessages();
+
+        const handleContainer = document.getElementById('current-handle');
+        if (handleContainer && !handleContainer.hasAttribute('data-bound')) {
+            handleContainer.setAttribute('data-bound', 'true');
+            handleContainer.addEventListener('click', () => {
+                const config = getActiveChatConfig();
+                const currentHandle = localStorage.getItem('mite_user_handle') || 'Listener_9999';
+                
+                const userInput = prompt("Enter your chat handle (max 15 characters):", currentHandle);
+                
+                if (userInput !== null) {
+                    const trimmedInput = userInput.trim();
+
+                    if (trimmedInput === DJ_TRIGGER_PHRASE) {
+                        if (!config.isLive) {
+                            alert("DJ mode can only be unlocked when the station is LIVE.");
+                            return;
+                        }
+
+                        const pinInput = prompt("Enter 4-digit DJ PIN:");
+                        if (pinInput === DJ_SECRET_PIN) {
+                            localStorage.setItem('mite_dj_mode', 'true');
+                            
+                            const djNameInput = prompt("Enter your official DJ handle:", "MITE_DJ");
+                            if (djNameInput !== null && djNameInput.trim().length > 0) {
+                                const safeDjName = djNameInput.trim().substring(0, 15);
+                                localStorage.setItem('mite_user_handle', safeDjName);
+                                handleContainer.innerText = safeDjName;
+                            }
+                            alert("DJ Mode Activated Successfully!");
+                            lastRenderedIds.clear();
+                            fetchChatMessages();
+                        } else {
+                            alert("Incorrect PIN.");
+                        }
+                        return;
+                    }
+
+                    if (trimmedInput.length > 0) {
+                        const safeHandle = trimmedInput.substring(0, 15);
+                        localStorage.setItem('mite_user_handle', safeHandle);
+                        handleContainer.innerText = safeHandle;
+                    }
+                }
+            });
+        }
+
+        const sendBtn = document.querySelector('.chat-input-area button');
+        const inputField = document.querySelector('.chat-input-area input');
+        
+        if (inputField && sendBtn && !inputField.hasAttribute('data-bound')) {
+            inputField.setAttribute('data-bound', 'true');
+            inputField.disabled = false;
+            sendBtn.disabled = false;
+
+            sendBtn.addEventListener('click', handleSendMessage);
+            inputField.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') handleSendMessage();
+            });
+        }
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', setupChatUI);
+    } else {
+        setupChatUI();
+    }
+
+    function escapeHtml(text) {
+        if (text === null || text === undefined) return '';
+        return String(text).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m]));
+    }
+  </script>
+  
+  <div class="footer">
+    v2.00 Usage terms and conditions on the MITE Radio website
+  </div>
 
 </body>
 </html>
