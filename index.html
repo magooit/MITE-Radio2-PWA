@@ -455,16 +455,16 @@
                     txt.innerHTML = data.nowplaying;
                     currentShowName = decodeURIComponent(txt.value).trim();
                     
-                if (currentShowName.startsWith("MITE") && currentShowName.includes("-")) {
-                    isCurrentlyLive = true;
-                    statusBadge.innerHTML = '<span class="live-flash">LIVE</span>';
-                    statusText.innerText = currentShowName;
-                    banner.setAttribute('data-is-live', 'true');
-                    chatTabBtn.innerHTML = '💬 <span class="live-flash">Live</span> Chat';
+                    if (currentShowName.startsWith("MITE") && currentShowName.includes("-")) {
+                        isCurrentlyLive = true;
+                        statusBadge.innerHTML = '<span class="live-flash">LIVE</span>';
+                        statusText.innerText = currentShowName;
+                        banner.setAttribute('data-is-live', 'true');
+                        chatTabBtn.innerHTML = '💬 <span class="live-flash">Live</span> Chat';
 
-                    // Only set up a session start time if one doesn't exist yet for this live run
-                    if (!localStorage.getItem('mite_live_session_start')) {
-                        detectLiveShowStartTime(currentShowName);
+                        if (previousLiveShowName !== currentShowName || !localStorage.getItem('mite_live_session_start')) {
+                            localStorage.removeItem('mite_live_session_start');
+                        }
                     }
                 }
                 
