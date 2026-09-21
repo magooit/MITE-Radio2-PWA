@@ -1,6 +1,6 @@
 {
   "short_name": "MITE Radio",
-  "name": "MITE Radio Progressive Web App",
+  "name": "MITE Radio Dev",
   "start_url": "/MITE-Radio-PWA/",
   "scope": "/MITE-Radio-PWA/",
   "display": "standalone",
